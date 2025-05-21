@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const issueSchema = new mongoose.Schema({
+  projectId: String,
   filePath: String,
   fileName: String,
   type: String,

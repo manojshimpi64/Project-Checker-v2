@@ -36,31 +36,65 @@ app.post("/export/excel", async (req, res) => {
   await generateExcel(warnings, res);
 });
 
+// Forsorting Route
+
 // Routes
-app.get("/", (req, res) => {
+app.get("/reset", (req, res) => {
   res.render("index", {
     message: null,
     warnings: [],
     warningCount: 0,
     directoryPath: "",
     pageName: "",
+    projectName: "",
     checkType: "",
     checkOption: "",
   });
 });
 
 app.post("/issue/:id/solve", async (req, res) => {
-  await Issue.findByIdAndUpdate(req.params.id, { status: "solved" });
-  res.redirect("/");
+  const issueId = req.params.id;
+
+  await Issue.findByIdAndUpdate(issueId, { status: "solved" });
+
+  const sortedWarnings = await fetchAllIssues();
+
+  res.render("index", {
+    message: "✅ Issue marked as solved.",
+    warnings: sortedWarnings,
+    classSuccess: "alert-success",
+    warningCount: sortedWarnings.length,
+    // Retain previous form values
+    directoryPath: req.body.directoryPath || "",
+    projectName: req.body.projectName || "",
+    pageName: req.body.pageName || "",
+    checkType: req.body.checkType || "",
+    checkOption: req.body.checkOption || "",
+  });
 });
 
 app.post("/issue/:id/ignore", async (req, res) => {
-  await Issue.findByIdAndUpdate(req.params.id, { status: "ignored" });
-  res.redirect("/");
+  const issueId = req.params.id;
+  const sortedWarnings = await fetchAllIssues();
+  await Issue.findByIdAndUpdate(issueId, { status: "ignored" });
+  res.render("index", {
+    message: "✅ Issue marked as ignored.",
+    warnings: sortedWarnings,
+    classSuccess: "alert-success",
+    warningCount: sortedWarnings.length,
+    // Retain previous form values
+    directoryPath: req.body.directoryPath || "",
+    projectName: req.body.projectName || "",
+    pageName: req.body.pageName || "",
+    checkType: req.body.checkType || "",
+    checkOption: req.body.checkOption || "",
+  });
 });
 
 app.post("/check", async (req, res) => {
-  const { directoryPath, pageName, checkType, checkOption } = req.body;
+  const { directoryPath, pageName, checkType, checkOption, projectName } =
+    req.body;
+  //console.log(req.body);
   const warnings = [];
 
   const directoryExists = await fs.pathExists(directoryPath);
@@ -72,6 +106,7 @@ app.post("/check", async (req, res) => {
       directoryPath,
       pageName,
       checkType,
+      projectName,
       checkOption,
     });
   }
@@ -107,15 +142,23 @@ app.post("/check", async (req, res) => {
 
     // Insert the warnings into the MongoDB database after collecting them
     if (warnings.length > 0) {
-      await insertWarnings(warnings); // Call the insert function
+      const warningsWithProject = warnings.map((warning) => ({
+        ...warning,
+        projectId: projectName,
+      }));
+
+      await insertWarnings(warningsWithProject);
     }
+
+    const sortedWarnings = await fetchAllIssues(); // Call the fetch function
 
     const hasWarnings = warnings.length > 0;
     res.render("index", {
       message: hasWarnings ? null : "✅ No issues found!",
-      warnings,
-      warningCount: warnings.length,
+      warnings: sortedWarnings,
+      warningCount: sortedWarnings.length,
       directoryPath,
+      projectName,
       pageName,
       checkType,
       checkOption,
@@ -127,6 +170,7 @@ app.post("/check", async (req, res) => {
       warnings: [],
       warningCount: 0,
       directoryPath,
+      projectName,
       pageName,
       checkType,
       checkOption,
@@ -474,18 +518,54 @@ function findLineNumber(searchString, content) {
 
 async function insertWarnings(warnings) {
   try {
-    // Clean up previous warnings in the Issue collection
-    //await Issue.deleteMany({});
+    let insertedCount = 0;
 
-    // Insert all new warnings
-    const createdIssues = await Issue.insertMany(warnings);
-    console.log(
-      `${createdIssues.length} new warnings inserted into the database.`
-    );
+    for (let warning of warnings) {
+      const exists = await Issue.findOne({
+        type: warning.type,
+        lineNumber: warning.lineNumber,
+        fileName: warning.fileName,
+        filePath: warning.filePath,
+      });
+
+      if (!exists) {
+        await Issue.create(warning);
+        insertedCount++;
+      }
+    }
+
+    console.log(`${insertedCount} unique warnings inserted into the database.`);
   } catch (err) {
-    console.error("Error inserting warnings:", err);
+    console.error("❌ Error inserting warnings:", err);
   }
 }
+
+async function fetchAllIssues(projectName = "") {
+  try {
+    let query = { status: "new" };
+    if (projectName) {
+      query.projectId = projectName;
+    }
+
+    const issues = await Issue.find(query).sort({ createdAt: -1 }); // Sorting by createdAt or use any other field
+    return issues;
+  } catch (error) {
+    console.error("❌ Error in fetchAllIssues:", error);
+    throw error;
+  }
+}
+
+/*async function fetchAllIssues() {
+  try {
+    const issues = await Issue.find({ status: "new" }).sort({ createdAt: -1 }); // Sort by newest
+    return issues;
+  } catch (error) {
+    console.error("❌ Error in fetchAllIssues:", error);
+    throw error;
+  }
+}*/
+
+// Render View
 
 // Start server
 app.listen(3000, () => {

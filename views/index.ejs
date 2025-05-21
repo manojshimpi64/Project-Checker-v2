@@ -15,6 +15,20 @@
         <div class="card-body">
          
           <form id="checkForm" action="/check" method="POST">
+
+            <div class="mb-3">
+              <label for="projectName" class="form-label">Project Name:</label>
+              <input
+                type="text"
+                class="form-control"
+                id="projectName"
+                name="projectName"
+                value="<%= typeof projectName !== 'undefined' ? projectName : '' %>"
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+
             <div class="mb-3">
               <label for="directoryPath" class="form-label"
                 >Directory Path:</label
@@ -83,7 +97,7 @@
             <div class="d-flex justify-content-between">
               <button type="submit" class="btn btn-primary">Submit</button>
               <a
-                href="/"
+                href="/reset"
                 
                 role="button"
                 class="btn btn-danger"
@@ -128,9 +142,13 @@
             <p class="mt-2">Checking files, please wait...</p>
           </div>
 
-          <% if (message) { %>
-          <div class="alert alert-danger mt-3"><%= message %></div>
-          <% } %>
+         <% if (message && message.length > 0) { %>
+          <div class="alert <%= classSuccess %> mt-3" id="alertMessage"><%= message %></div>
+        <% } else if (message && message.length > 0) { %>
+          <div class="alert alert-danger mt-3" id="alertMessage"><%= message %></div>
+        <% } %>
+
+          
 
           
           <% if (warnings && warnings.length > 0) { %>
@@ -138,6 +156,11 @@
             ❌ <strong><%= warningCount %></strong> issue(s) found during the
             check.
           </div>
+
+           
+
+         
+
 
           <h3 class="mt-3">Error Details: <%= warningCount %></h3>
           <div class="table-responsive mt-2">
@@ -163,10 +186,21 @@
                   <td><%= w.message %></td>
                   <td>
                     <form method="POST" action="/issue/<%= w._id %>/solve" style="display:inline">
-                      <button class="btn btn-sm btn-success">✔️ Solve</button>
-                    </form>
+                    <input type="hidden" name="directoryPath" value="<%= directoryPath %>">
+                    <input type="hidden" name="projectName" value="<%= projectName %>">
+                    <input type="hidden" name="pageName" value="<%= pageName %>">
+                    <input type="hidden" name="checkType" value="<%= checkType %>">
+                    <input type="hidden" name="checkOption" value="<%= checkOption %>">
+                    <button class="btn btn-sm btn-success">✔️ Solve</button>
+                  </form>
+
                     <form method="POST" action="/issue/<%= w._id %>/ignore" style="display:inline">
-                      <button class="btn btn-sm btn-warning">🚫 Ignore</button>
+                      <input type="hidden" name="directoryPath" value="<%= directoryPath %>">
+                      <input type="hidden" name="projectName" value="<%= projectName %>">
+                      <input type="hidden" name="pageName" value="<%= pageName %>">
+                      <input type="hidden" name="checkType" value="<%= checkType %>">
+                      <input type="hidden" name="checkOption" value="<%= checkOption %>">
+                      <button class="btn btn-sm btn-warning">🚫 Ignore </button>
                     </form>
                   </td>
 
@@ -206,7 +240,13 @@
           document.getElementById("loader").style.display = "block";
         });
 
-
+        // Error message 5 second after hide
+         setTimeout(function() {
+          const alertMessage = document.getElementById('alertMessage');
+          if (alertMessage) {
+            alertMessage.style.display = 'none';
+          }
+        }, 3000);  // 3000 milliseconds = 3 seconds
         
     </script>
   </body>
