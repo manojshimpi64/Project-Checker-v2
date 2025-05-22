@@ -568,6 +568,6 @@ async function fetchAllIssues(projectName = "") {
 // Render View
 
 // Start server
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
+app.listen(6000, () => {
+  console.log("Server running at http://localhost:6000");
 });
